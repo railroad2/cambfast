@@ -9,10 +9,10 @@ import cambfast
 from gbpipe.spectrum import get_spectrum_camb
 
 class test_cambfast_H0(unittest.TestCase): 
-
-    def __init__(self):
-        self.lmax = 2000
-        self.cf = cambfast.cambfast('H0', 50, 80, nsample=30, lmax=self.lmax)
+    @classmethod
+    def setUpClass(cls):
+        cls.lmax = 2000
+        cls.cf = cambfast.cambfast('H0', 50, 80, nsample=30, lmax=cls.lmax)
 
     def setUp(self):
         self.t0 = time.time()
@@ -37,13 +37,13 @@ class test_cambfast_H0(unittest.TestCase):
 
 
 class test_cambfast_tau(unittest.TestCase): 
-
-    def __init__(self):
-        self.lmax = 2000
-        self.pname = 'tau'
-        self.pmin = 0.030
-        self.pmax = 0.080
-        self.cf = cambfast.cambfast(self.pname, self.pmin, self.pmax, nsample=30, lmax=self.lmax)
+    @classmethod
+    def setUpClass(cls): 
+        cls.lmax = 2000
+        cls.pname = 'tau'
+        cls.pmin = 0.030
+        cls.pmax = 0.080
+        cls.cf = cambfast.cambfast(cls.pname, cls.pmin, cls.pmax, nsample=30, lmax=cls.lmax, r=0.1)
 
     def setUp(self):
         self.t0 = time.time()
@@ -59,7 +59,7 @@ class test_cambfast_tau(unittest.TestCase):
         kwargs = {}
         for i in par_in:
             kwargs[self.pname] = i
-            dls_camb = get_spectrum_camb(lmax=self.lmax, **kwargs)
+            dls_camb = get_spectrum_camb(lmax=self.lmax, **kwargs, r=0.1)
             plt.loglog(dls_camb.T, 'b-')
 
     def testz_show(self):
@@ -70,12 +70,14 @@ class test_cambfast_tau(unittest.TestCase):
 
 
 class test_cambfast_tau_withfile(unittest.TestCase): 
-
-    lmax = 100
-    pname = 'tau'
-    pmin = 0.030
-    pmax = 0.080
-    fname = './tau_test.npz'
+    @classmethod
+    def setUpClass(cls):
+        cls.lmax = 2000
+        cls.pname = 'tau'
+        cls.pmin = 0.030
+        cls.pmax = 0.080
+        cls.fname = './tau_test.npz'
+        cls.nsample = 30
 
     def setUp(self):
         self.t0 = time.time()
@@ -84,14 +86,14 @@ class test_cambfast_tau_withfile(unittest.TestCase):
         if os.path.isfile(self.fname):
             pass
         else:
-            cf = cambfast.cambfast(self.pname, self.pmin, self.pmax, nsample=30, lmax=self.lmax)
+            cf = cambfast.cambfast(self.pname, self.pmin, self.pmax, nsample=self.nsample, lmax=self.lmax, r=0.1)
             cf.write_funcs('tau_test.npz')
         
     def test2_inter(self):
         cf = cambfast.cambfast(filename=self.fname)
-        par_in = np.linspace(0.04, 0.07, 100)
+        par_in = np.linspace(0.04, 0.07, 20)
         for i in par_in:
-            dls_inter = cf.get_spectrum(i, lmax=47)
+            dls_inter = cf.get_spectrum(i, lmax=1000)
             plt.loglog(dls_inter.T, 'r-')
 
     def testz_show(self):
@@ -104,6 +106,7 @@ class test_cambfast_tau_withfile(unittest.TestCase):
 def suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(test_cambfast_tau_withfile))
+    #suite.addTest(unittest.makeSuite(test_cambfast_tau))
     return suite
 
 

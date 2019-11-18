@@ -3,16 +3,27 @@ import numpy as np
 import camb
 from scipy.interpolate import interp2d
 
-from gbpipe.utils import dl2cl
+
+args_cosmology = ['H0', 'cosmomc_theta', 'ombh2', 'omch2', 'omk', 
+                  'neutrino_hierarchy', 'num_massive_nutrinos',
+                  'mnu', 'nnu', 'YHe', 'meffsterile', 'standard_neutrino_neff', 
+                  'TCMB', 'tau', 'deltazrei', 'bbnpredictor', 'theta_H0_range'] 
+
+args_InitPower = ['As', 'ns', 'nrun', 'nrunrun', 'r', 'nt', 'ntrun', 'pivot_scalar', 
+                  'pivot_tensor', 'parameterization']
+
 
 class cambfast():
 
-    def __init__(self, pname=None, pmin=None, pmax=None, lmax=None, nsample=10, CMB_unit=None, filename=None):
+    def __init__(self, pname=None, pmin=None, pmax=None, lmax=None, nsample=10, CMB_unit=None, filename=None, **kwargs):
         self.funcTT = []
         self.funcEE = []
         self.funcBB = []
         self.funcTE = []
-        self.respar = []
+        self.pothers = kwargs
+
+        self.attrs = ['pname', 'pmin', 'pmax', 'nsample', 'lmax', 'CMB_unit', 
+                      'funcTT', 'funcEE', 'funcBB', 'funcTE', 'pothers']
 
         if filename is not None:
             self.load_funcs(filename)
@@ -31,11 +42,6 @@ class cambfast():
             self.__generate_interp()
 
     def __generate_interp(self):
-        pars = camb.CAMBparams()
-        kwargs_cosmology = {}
-        if self.pname != 'H0':
-            kwargs_cosmology['H0'] = 67.5
-
         self.ell = np.arange(self.lmax+1)
         parr = np.linspace(self.pmin, self.pmax, self.nsample)
 
@@ -43,13 +49,10 @@ class cambfast():
         dls_EE = []
         dls_BB = []
         dls_TE = []
+        kwargs = self.pothers.copy()
         for par in parr:
-            kwargs_cosmology[self.pname] = par
-            pars.set_cosmology(**kwargs_cosmology)
-            pars.InitPower.set_params()
-            pars.WantTensors=True
-            results = camb.get_results(pars)
-            dls = results.get_total_cls(lmax=self.lmax, CMB_unit=self.CMB_unit).T
+            kwargs[self.pname] = par
+            dls = get_spectrum_camb(lmax=self.lmax, CMB_unit=None, **kwargs)
 
             dls_TT.append(dls[0])
             dls_EE.append(dls[1])
@@ -88,6 +91,14 @@ class cambfast():
             return cls
 
     def write_funcs(self, fname):
+
+        kwargs = {}
+        for aname in self.attrs:
+            kwargs[aname] = getattr(self, aname)
+
+        np.savez(fname, **kwargs)
+
+        """
         np.savez(fname, 
                  pname = self.pname, 
                  pmin = self.pmin,
@@ -99,19 +110,81 @@ class cambfast():
                  funcEE = self.funcEE, 
                  funcBB = self.funcBB, 
                  funcTE = self.funcTE, 
-                 allow_pickle = True)
+                 pothers = self.pothers)
+        """
         print ("The functions have been saved in {}".format(fname))
 
     def load_funcs(self, fname):
         dat = np.load(fname, allow_pickle=True)
-        self.pname = dat['pname']
-        self.pmin = dat['pmin']
-        self.pmax = dat['pmax']
-        self.nsample = dat['nsample']
-        self.lmax = dat['lmax']
-        self.CMB_unit = dat['CMB_unit']
-        self.funcTT = dat['funcTT'].item()
-        self.funcEE = dat['funcEE'].item()
-        self.funcBB = dat['funcBB'].item()
-        self.funcTE = dat['funcTE'].item()
+        for name in dat.files:
+            setattr(self, name, dat[name].item())
+
+
+def dl2cl(dls):
+    cls = dls.copy()
+    if (len(cls) < 10):
+        cls = cls.T
+
+    ell = np.arange(len(cls[0]))
+
+    for i in range(len(cls)):
+        cls[i][1:] = cls[i][1:] * (2. * np.pi) / (ell[1:] * (ell[1:] + 1))
+
+    if (len(dls) < 10):
+        cls = cls.T
+
+    return cls
+
+
+def get_spectrum_camb(lmax, 
+                      isDl=True, cambres=False, TTonly=False, unlensed=False, CMB_unit=None, 
+                      **kwargs):
+   
+    ## arguments to dictionaries
+    kwargs_cosmology={}
+    kwargs_InitPower={}
+    wantTensor = False
+
+    for key, value in kwargs.items():  
+        if key in args_cosmology: 
+            kwargs_cosmology[key]=value
+            if key == 'r':
+                wantTensor = True
+        elif key in args_InitPower:
+            kwargs_InitPower[key]=value
+        else:
+            print_warning('Wrong keyword: ' + key)
+
+    ## for camb > 1.0
+    if not ('H0' in kwargs_cosmology.keys()):
+        kwargs_cosmology['H0'] = 67.5
+
+    ## call camb
+    pars = camb.CAMBparams()
+    pars.set_cosmology(**kwargs_cosmology)
+    pars.InitPower.set_params(**kwargs_InitPower)
+    pars.WantTensors = True
+    results = camb.get_results(pars)
+
+    if (TTonly):
+        if unlensed:
+            dls = results.get_unlensed_total_cls(lmax=lmax, CMB_unit=CMB_unit).T[0]
+        else:
+            dls = results.get_total_cls(lmax=lmax, CMB_unit=CMB_unit).T[0]
+    else: 
+        if unlensed:
+            dls = results.get_unlensed_total_cls(lmax=lmax, CMB_unit=CMB_unit).T
+        else:
+            dls = results.get_total_cls(lmax=lmax, CMB_unit=CMB_unit).T
+
+    if (isDl):
+        res = dls
+    else:
+        cls = dl2cl(dls)
+        res = cls
+
+    if (cambres):
+        return res, results
+    else:
+        return res
 
