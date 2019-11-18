@@ -13,7 +13,7 @@ args_InitPower = ['As', 'ns', 'nrun', 'nrunrun', 'r', 'nt', 'ntrun', 'pivot_scal
                   'pivot_tensor', 'parameterization']
 
 
-class cambfast():
+class CAMBfast():
 
     def __init__(self, pname=None, pmin=None, pmax=None, lmax=None, nsample=10, CMB_unit=None, filename=None, **kwargs):
         self.funcTT = []
