@@ -13,13 +13,14 @@ args_InitPower = ['As', 'ns', 'nrun', 'nrunrun', 'r', 'nt', 'ntrun', 'pivot_scal
                   'pivot_tensor', 'parameterization']
 
 
-class cambfast():
+class CAMBfast():
 
     def __init__(self, pname=None, pmin=None, pmax=None, lmax=None, nsample=10, CMB_unit=None, filename=None, **kwargs):
         self.funcTT = []
         self.funcEE = []
         self.funcBB = []
         self.funcTE = []
+        self.CMB_unit = CMB_unit
         self.pothers = kwargs
 
         self.attrs = ['pname', 'pmin', 'pmax', 'nsample', 'lmax', 'CMB_unit', 
@@ -52,7 +53,7 @@ class cambfast():
         kwargs = self.pothers.copy()
         for par in parr:
             kwargs[self.pname] = par
-            dls = get_spectrum_camb(lmax=self.lmax, CMB_unit=None, **kwargs)
+            dls = get_spectrum_camb(lmax=self.lmax, CMB_unit=self.CMB_unit, **kwargs)
 
             dls_TT.append(dls[0])
             dls_EE.append(dls[1])
@@ -122,7 +123,8 @@ class cambfast():
 
 def dl2cl(dls):
     cls = dls.copy()
-    if (len(cls) < 10):
+
+    if (len(cls) > 10):
         cls = cls.T
 
     ell = np.arange(len(cls[0]))
@@ -130,7 +132,7 @@ def dl2cl(dls):
     for i in range(len(cls)):
         cls[i][1:] = cls[i][1:] * (2. * np.pi) / (ell[1:] * (ell[1:] + 1))
 
-    if (len(dls) < 10):
+    if (len(dls) > 10):
         cls = cls.T
 
     return cls
