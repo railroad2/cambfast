@@ -1,7 +1,10 @@
+import os
 import time
-import numpy as np
+
 import camb
+import numpy as np
 from scipy.interpolate import interp2d
+
 
 
 args_cosmology = ['H0', 'cosmomc_theta', 'ombh2', 'omch2', 'omk', 
@@ -26,8 +29,13 @@ class CAMBfast():
         self.attrs = ['pname', 'pmin', 'pmax', 'nsample', 'lmax', 'CMB_unit', 
                       'funcTT', 'funcEE', 'funcBB', 'funcTE', 'pothers']
 
+        self.fn_pre = './precomputed/{0}_{1}_{2}_{3}_{4}.npz'.format(pname, pmin, pmax, nsample, CMB_unit)
+
         if filename is not None:
             self.load_funcs(filename)
+
+        elif os.path.isfile(self.fn_pre):
+            self.load_funcs(self.fn_pre)
 
         else:
             if (np.array([pname, pmin, pmax, lmax]) == None).any():
@@ -41,6 +49,13 @@ class CAMBfast():
             self.CMB_unit = CMB_unit
 
             self.__generate_interp()
+            try:
+                os.mkdir('precomputed')
+            except:
+                pass
+
+            self.write_funcs(self.fn_pre)
+
 
     def __generate_interp(self):
         self.ell = np.arange(self.lmax+1)
@@ -99,20 +114,6 @@ class CAMBfast():
 
         np.savez(fname, **kwargs)
 
-        """
-        np.savez(fname, 
-                 pname = self.pname, 
-                 pmin = self.pmin,
-                 pmax = self.pmax,
-                 nsample = self.nsample,
-                 lmax = self.lmax,
-                 CMB_unit = self.CMB_unit,
-                 funcTT = self.funcTT, 
-                 funcEE = self.funcEE, 
-                 funcBB = self.funcBB, 
-                 funcTE = self.funcTE, 
-                 pothers = self.pothers)
-        """
         print ("The functions have been saved in {}".format(fname))
 
     def load_funcs(self, fname):

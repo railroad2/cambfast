@@ -16,6 +16,9 @@ or
     print(cf.pname)
     dls = cf.get_spectrum(0.05)
     
+It generated precomputed files in 'precomputed' directory. 
+Please note that the parameters other than the main parameter are default values
+unless they are not defined as extra arguments.
     
      
 

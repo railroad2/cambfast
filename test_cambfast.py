@@ -105,8 +105,8 @@ class test_cambfast_tau_withfile(unittest.TestCase):
 
 def suite():
     suite = unittest.TestSuite()
-    suite.addTest(unittest.makeSuite(test_cambfast_tau_withfile))
-    #suite.addTest(unittest.makeSuite(test_cambfast_tau))
+    #suite.addTest(unittest.makeSuite(test_cambfast_tau_withfile))
+    suite.addTest(unittest.makeSuite(test_cambfast_tau))
     return suite
 
 
