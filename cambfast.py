@@ -6,7 +6,6 @@ import numpy as np
 from scipy.interpolate import interp2d
 
 
-
 args_cosmology = ['H0', 'cosmomc_theta', 'ombh2', 'omch2', 'omk', 
                   'neutrino_hierarchy', 'num_massive_nutrinos',
                   'mnu', 'nnu', 'YHe', 'meffsterile', 'standard_neutrino_neff', 
