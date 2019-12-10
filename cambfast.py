@@ -156,7 +156,7 @@ def get_spectrum_camb(lmax,
         elif key in args_InitPower:
             kwargs_InitPower[key]=value
         else:
-            print_warning('Wrong keyword: ' + key)
+            print('Wrong keyword: ' + key)
 
     ## for camb > 1.0
     if not ('H0' in kwargs_cosmology.keys()):
