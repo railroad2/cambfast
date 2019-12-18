@@ -15,100 +15,87 @@ args_InitPower = ['As', 'ns', 'nrun', 'nrunrun', 'r', 'nt', 'ntrun', 'pivot_scal
                   'pivot_tensor', 'parameterization']
 
 
-class Parameter(): 
-    def __init__(self, pname, pinit, pmin, pmax, nstep, fixed=False):
-        assert (pmax >= pmin),  f'pmax (={pmax}) must be larger than pmin (={pmin}).'
-        self.name = pname
-        self.init = pinit
-        self.min = pmin
-        self.max = pmax
-        self.nstep = nstep
-        self.fixed = fixed
-
 class CAMBfast():
 
-    def __init__(self, filename=None):
-        self.pars = []
-        self.pfixed = []
-        self.lmax = 2000 
-        self.CMB_unit = 'muK'
-        self.ell = []
+    def __init__(self, pname=None, pmin=None, pmax=None, lmax=None, nsample=10, CMB_unit=None, filename=None, **kwargs):
         self.funcTT = []
         self.funcEE = []
         self.funcBB = []
         self.funcTE = []
+        self.CMB_unit = CMB_unit
+        self.pothers = kwargs
 
-        self.attrs = ['pars', 'pfixed', 'lmax', 'CMB_unit', 'ell',
-                      'funcTT', 'funcEE', 'funcBB', 'funcTE']
+        self.attrs = ['pname', 'pmin', 'pmax', 'nsample', 'lmax', 'CMB_unit', 
+                      'funcTT', 'funcEE', 'funcBB', 'funcTE', 'pothers']
+
+        self.fn_pre = './precomputed/{0}_{1}_{2}_{3}_{4}.npz'.format(pname, pmin, pmax, nsample, CMB_unit)
 
         if filename is not None:
             self.load_funcs(filename)
 
-    def add_parameter(self, pname, pinit, pmin, pmax, nstep, fixed=False):
-        par = Parameter(pname, pinit, pmin, pmax, nstep, fixed)
-        if par.fixed:
-            self.pfixed.append(par)
+        elif os.path.isfile(self.fn_pre):
+            self.load_funcs(self.fn_pre)
+
         else:
-            self.pars.append(par)
+            if (np.array([pname, pmin, pmax, lmax]) == None).any():
+                raise ValueError("All the arguments: pname, pmin, pmax, lmax should be given.")
 
-    def generate_interp(self, lmax, CMB_unit):
-        self.lmax = lmax
-        self.CMB_unit = CMB_unit
+            self.pname = pname
+            self.pmin = pmin
+            self.pmax = pmax
+            self.nsample = nsample
+            self.lmax = lmax
+            self.CMB_unit = CMB_unit
+
+            self.__generate_interp()
+            try:
+                os.mkdir('precomputed')
+            except:
+                pass
+
+            self.write_funcs(self.fn_pre)
+
+
+    def __generate_interp(self):
         self.ell = np.arange(self.lmax+1)
+        parr = np.linspace(self.pmin, self.pmax, self.nsample)
 
-        parr = []
-        for par in self.pars:
-            parr.append(np.linspace(par.min, par.max, par.nstep))
+        dls_TT = []
+        dls_EE = []
+        dls_BB = []
+        dls_TE = []
+        kwargs = self.pothers.copy()
+        for par in parr:
+            kwargs[self.pname] = par
+            dls = get_spectrum_camb(lmax=self.lmax, CMB_unit=self.CMB_unit, **kwargs)
 
-        kw_pfixed = {}
-        for par in self.pfixed:
-            kw_pfixed[par.name] = par.init
+            dls_TT.append(dls[0])
+            dls_EE.append(dls[1])
+            dls_BB.append(dls[2])
+            dls_TE.append(dls[3])
 
-        grid = np.meshgrid(*parr, indexing='ij')
-        shape = list(grid[0].shape)
+        dls_TT = np.array(dls_TT)
+        dls_EE = np.array(dls_EE)
+        dls_BB = np.array(dls_BB)
+        dls_TE = np.array(dls_TE)
 
-        grids = np.reshape(grid, (len(grid), np.prod(shape))) 
+        self.funcTT = interp2d(self.ell, parr, dls_TT) 
+        self.funcEE = interp2d(self.ell, parr, dls_EE) 
+        self.funcBB = interp2d(self.ell, parr, dls_BB) 
+        self.funcTE = interp2d(self.ell, parr, dls_TE) 
 
-        def __spectrum(*p):
-            kw_par = {} 
-            for par, pval in zip(self.pars, p):
-                kw_par[par.name] = pval
-
-            return get_spectrum_camb(self.lmax, isDl=True, CMB_unit=self.CMB_unit, 
-                                     **kw_par, **kw_pfixed) 
-
-        dat = np.array(list(map(__spectrum, *grids)))
-        newshape = np.append(shape, np.shape(dat)[-1])
-
-        datTT = np.reshape(dat[:, 0, :], newshape)
-        datEE = np.reshape(dat[:, 1, :], newshape)
-        datBB = np.reshape(dat[:, 2, :], newshape)
-        datTE = np.reshape(dat[:, 3, :], newshape)
-
-        self.funcTT = RegularGridInterpolator((*parr, self.ell), datTT)
-        self.funcEE = RegularGridInterpolator((*parr, self.ell), datEE)
-        self.funcBB = RegularGridInterpolator((*parr, self.ell), datBB)
-        self.funcTE = RegularGridInterpolator((*parr, self.ell), datTE)
-
-    def get_spectrum(self, lmax=None, isDl=True, **kwpars):
+    def get_spectrum(self, par, lmax=None, isDl=True):
         dls = []
         if lmax is None:
             lmax = self.lmax
         elif lmax > self.lmax:
             lmax = self.lmax
 
-        pars = []
-        for p in self.pars:
-            try:
-                pars.append(kwpars[p.name])
-            except KeyError:
-                pars.append(p.init)
-
         ell = np.arange(lmax+1)
-        dls.append(self.funcTT((*pars, ell)))
-        dls.append(self.funcEE((*pars, ell)))
-        dls.append(self.funcBB((*pars, ell)))
-        dls.append(self.funcTE((*pars, ell)))
+        dls.append(self.funcTT(ell, par))
+        dls.append(self.funcEE(ell, par))
+        dls.append(self.funcBB(ell, par))
+        dls.append(self.funcTE(ell, par))
 
         dls = np.array(dls)
 
@@ -130,10 +117,7 @@ class CAMBfast():
     def load_funcs(self, fname):
         dat = np.load(fname, allow_pickle=True)
         for name in dat.files:
-            if name[:4]=='func':
-                setattr(self, name, dat[name].item())
-            else:
-                setattr(self, name, dat[name])
+            setattr(self, name, dat[name].item())
 
 
 def dl2cl(dls):

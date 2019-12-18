@@ -8,58 +8,40 @@ import pylab as plt
 import cambfast
 from cambfast import get_spectrum_camb
 
-class test_cambfast_H0(unittest.TestCase): 
+
+class test_cambfast(unittest.TestCase): 
     @classmethod
     def setUpClass(cls):
+        cls.cf = cambfast.CAMBfast() 
+        cls.cf.add_parameter('tau', 0.0522, 0.02, 0.1, 3, fixed=False)
+        cls.cf.add_parameter('r', 0.01, 0.0, 0.1, 3, fixed=False)
+        cls.cf.add_parameter('H0', 55., 50., 70., 3, fixed=False)
+        cls.cf.generate_interp(1000, CMB_unit='muK') 
         cls.lmax = 2000
-        cls.cf = cambfast.CAMBfast('H0', 50, 80, nsample=30, lmax=cls.lmax)
+        cls.cf.write_funcs('test.npz')
 
     def setUp(self):
         self.t0 = time.time()
 
-    def test1_inter(self):
-        par_in = np.linspace(53, 79, 10)
-        for i in par_in:
-            dls_inter = self.cf.get_spectrum(i)
-            plt.loglog(dls_inter.T, 'r-')
+    def test1_cambfast_tau(self):
+        par_in = np.linspace(0.03, 0.04, 10)
+        for par in par_in:
+            cls = self.cf.get_spectrum(tau=par, isDl=True)
+            plt.loglog(cls.T, 'r-')
 
-    def test2_camb(self):
-        par_in = np.linspace(53, 79, 10)
-        for i in par_in:
-            dls_camb = get_spectrum_camb(lmax=self.lmax, H0=i)
-            plt.loglog(dls_camb.T, 'b-')
+    def test2_cambfast_H0(self):
+        par_in = np.linspace(55, 67, 10)
 
-    def testz_show(self):
-        plt.show()
+        for par in par_in:
+            cls = self.cf.get_spectrum(H0=par, isDl=True)
+            plt.loglog(cls.T, 'g-')
 
-    def tearDown(self):
-        print ("Elapsed time =", time.time() - self.t0)
-
-
-class test_cambfast_tau(unittest.TestCase): 
-    @classmethod
-    def setUpClass(cls): 
-        cls.lmax = 2000
-        cls.pname = 'tau'
-        cls.pmin = 0.030
-        cls.pmax = 0.080
-        cls.cf = cambfast.CAMBfast(cls.pname, cls.pmin, cls.pmax, nsample=30, lmax=cls.lmax, r=0.1)
-
-    def setUp(self):
-        self.t0 = time.time()
-
-    def test1_inter(self):
-        par_in = np.linspace(0.04, 0.07, 10)
-        for i in par_in:
-            dls_inter = self.cf.get_spectrum(i)
-            plt.loglog(dls_inter.T, 'r-')
-
-    def test2_camb(self):
-        par_in = np.linspace(0.04, 0.07, 10)
+    def test3_camb_single(self):
+        par_in = np.linspace(0.03, 0.04, 10)
         kwargs = {}
         for i in par_in:
-            kwargs[self.pname] = i
-            dls_camb = get_spectrum_camb(lmax=self.lmax, r=0.01, **kwargs)
+            kwargs['tau'] = i
+            dls_camb = get_spectrum_camb(lmax=self.lmax, r=0.01, **kwargs, isDl=True, CMB_unit='muK')
             plt.loglog(dls_camb.T, 'b-')
 
     def testz_show(self):
@@ -69,32 +51,36 @@ class test_cambfast_tau(unittest.TestCase):
         print ("Elapsed time =", time.time() - self.t0)
 
 
-class test_cambfast_tau_withfile(unittest.TestCase): 
+class test_cambfast_precomputed(unittest.TestCase): 
     @classmethod
     def setUpClass(cls):
+        cls.cf = cambfast.CAMBfast() 
+        cls.cf.load_funcs('test.npz')
         cls.lmax = 2000
-        cls.pname = 'tau'
-        cls.pmin = 0.020
-        cls.pmax = 0.080
-        cls.fname = './tau_test.npz'
-        cls.nsample = 30
 
     def setUp(self):
         self.t0 = time.time()
 
-    def test1_writefile(self):
-        if os.path.isfile(self.fname):
-            pass
-        else:
-            cf = cambfast.CAMBfast(self.pname, self.pmin, self.pmax, nsample=self.nsample, lmax=self.lmax, r=0.01, CMB_unit='muK')
-            cf.write_funcs('tau_test.npz')
-        
-    def test2_inter(self):
-        cf = cambfast.CAMBfast(filename=self.fname)
-        par_in = np.linspace(0.04, 0.07, 20)
+    def test1_cambfast_tau(self):
+        par_in = np.linspace(0.03, 0.04, 10)
+        for par in par_in:
+            cls = self.cf.get_spectrum(tau=par, isDl=True)
+            plt.loglog(cls.T, 'r-')
+
+    def test2_cambfast_H0(self):
+        par_in = np.linspace(55, 67, 10)
+
+        for par in par_in:
+            cls = self.cf.get_spectrum(H0=par, isDl=True)
+            plt.loglog(cls.T, 'g-')
+
+    def test3_camb_single(self):
+        par_in = np.linspace(0.03, 0.04, 10)
+        kwargs = {}
         for i in par_in:
-            dls_inter = cf.get_spectrum(i, lmax=1000)
-            plt.loglog(dls_inter.T, 'r-')
+            kwargs['tau'] = i
+            dls_camb = get_spectrum_camb(lmax=self.lmax, r=0.01, **kwargs, isDl=True, CMB_unit='muK')
+            plt.loglog(dls_camb.T, 'b-')
 
     def testz_show(self):
         plt.show()
@@ -105,8 +91,8 @@ class test_cambfast_tau_withfile(unittest.TestCase):
 
 def suite():
     suite = unittest.TestSuite()
-    #suite.addTest(unittest.makeSuite(test_cambfast_tau_withfile))
-    suite.addTest(unittest.makeSuite(test_cambfast_tau))
+    suite.addTest(unittest.makeSuite(test_cambfast_precomputed))
+    #suite.addTest(unittest.makeSuite(test_cambfast))
     return suite
 
 
