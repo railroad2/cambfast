@@ -15,17 +15,18 @@ args_InitPower = ['As', 'ns', 'nrun', 'nrunrun', 'r', 'nt', 'ntrun', 'pivot_scal
                   'pivot_tensor', 'parameterization']
 
 
-class Parameter(): 
-    def __init__(self, pname, pinit, pmin, pmax, nstep, fixed=False):
-        assert (pmax >= pmin),  f'pmax (={pmax}) must be larger than pmin (={pmin}).'
-        self.name = pname
-        self.init = pinit
-        self.min = pmin
-        self.max = pmax
-        self.nstep = nstep
-        self.fixed = fixed
-
 class CAMBfast():
+
+    class Parameter(): 
+
+        def __init__(self, pname, pinit, pmin, pmax, nstep, fixed=False):
+            assert (pmax >= pmin),  f'pmax (={pmax}) must be larger than pmin (={pmin}).'
+            self.name = pname
+            self.init = pinit
+            self.min = pmin
+            self.max = pmax
+            self.nstep = nstep
+            self.fixed = fixed
 
     def __init__(self, filename=None):
         self.pars = []
@@ -52,6 +53,7 @@ class CAMBfast():
             self.pars.append(par)
 
     def generate_interp(self, lmax, CMB_unit):
+        print ('Generating interpolators')
         self.lmax = lmax
         self.CMB_unit = CMB_unit
         self.ell = np.arange(self.lmax+1)
@@ -70,6 +72,7 @@ class CAMBfast():
         grids = np.reshape(grid, (len(grid), np.prod(shape))) 
 
         def __spectrum(*p):
+            print (*p)
             kw_par = {} 
             for par, pval in zip(self.pars, p):
                 kw_par[par.name] = pval
@@ -105,10 +108,10 @@ class CAMBfast():
                 pars.append(p.init)
 
         ell = np.arange(lmax+1)
-        dls.append(self.funcTT((*pars, ell)))
-        dls.append(self.funcEE((*pars, ell)))
-        dls.append(self.funcBB((*pars, ell)))
-        dls.append(self.funcTE((*pars, ell)))
+        dls.append(self.funcTT((*pars, ell))[:lmax+1])
+        dls.append(self.funcEE((*pars, ell))[:lmax+1])
+        dls.append(self.funcBB((*pars, ell))[:lmax+1])
+        dls.append(self.funcTE((*pars, ell))[:lmax+1])
 
         dls = np.array(dls)
 
