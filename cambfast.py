@@ -46,7 +46,7 @@ class CAMBfast():
             self.load_funcs(filename)
 
     def add_parameter(self, pname, pinit, pmin, pmax, nstep, fixed=False):
-        par = Parameter(pname, pinit, pmin, pmax, nstep, fixed)
+        par = self.Parameter(pname, pinit, pmin, pmax, nstep, fixed)
         if par.fixed:
             self.pfixed.append(par)
         else:
@@ -108,12 +108,15 @@ class CAMBfast():
                 pars.append(p.init)
 
         ell = np.arange(lmax+1)
-        dls.append(self.funcTT((*pars, ell))[:lmax+1])
-        dls.append(self.funcEE((*pars, ell))[:lmax+1])
-        dls.append(self.funcBB((*pars, ell))[:lmax+1])
-        dls.append(self.funcTE((*pars, ell))[:lmax+1])
+        try:
+            dls.append(self.funcTT((*pars, ell))[:lmax+1])
+            dls.append(self.funcEE((*pars, ell))[:lmax+1])
+            dls.append(self.funcBB((*pars, ell))[:lmax+1])
+            dls.append(self.funcTE((*pars, ell))[:lmax+1])
 
-        dls = np.array(dls)
+            dls = np.array(dls)
+        except ValueError:
+            dls = get_spectrum_camb(lmax=lmax, isDl=True, **kwpars)
 
         if isDl:
             return dls
@@ -207,4 +210,5 @@ def get_spectrum_camb(lmax,
         return res, results
     else:
         return res
+
 
