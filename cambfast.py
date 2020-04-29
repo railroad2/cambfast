@@ -3,7 +3,8 @@ import time
 
 import camb
 import numpy as np
-from scipy.interpolate import interp2d, RegularGridInterpolator
+
+from scipy.interpolate import RegularGridInterpolator, griddata
 
 
 args_cosmology = ['H0', 'cosmomc_theta', 'ombh2', 'omch2', 'omk', 
@@ -39,8 +40,16 @@ class CAMBfast():
         self.funcBB = []
         self.funcTE = []
 
+        self.MCnpts = []
+        self.MCpoints = []
+        self.MCvalues = []
+
         self.attrs = ['pars', 'pfixed', 'lmax', 'CMB_unit', 'ell',
                       'funcTT', 'funcEE', 'funcBB', 'funcTE']
+
+        self.attrsMC = ['pars', 'pfixed', 'lmax', 'CMB_unit', 'ell',
+                        'MCnpts', 'MCpoints',
+                        'MCTT', 'MCEE', 'MCBB', 'MCTE']
 
         if filename is not None:
             self.load_funcs(filename)
@@ -52,15 +61,17 @@ class CAMBfast():
         else:
             self.pars.append(par)
 
-    def generate_interp(self, lmax, CMB_unit):
+    def generate_interp(self, lmax, CMB_unit='muK', ofname=None):
         print ('Generating interpolators')
         self.lmax = lmax
         self.CMB_unit = CMB_unit
         self.ell = np.arange(self.lmax+1)
 
         parr = []
+        npts = 1
         for par in self.pars:
             parr.append(np.linspace(par.min, par.max, par.nstep))
+            npts *= par.nstep
 
         kw_pfixed = {}
         for par in self.pfixed:
@@ -93,6 +104,80 @@ class CAMBfast():
         self.funcBB = RegularGridInterpolator((*parr, self.ell), datBB)
         self.funcTE = RegularGridInterpolator((*parr, self.ell), datTE)
 
+        if ofname is None:
+            ofname = ''
+            for par in self.pars:
+                ofname += par.name
+                ofname += '_'
+            
+        ofname += f'lmax{self.lmax}_npts{npts}.npz'
+        self.write_funcs(ofname)
+
+    def generate_interp_MC(self, lmax, nsamples, CMB_unit=None, rseed=0, rescale=False, ofname=None):
+        print ('Generating interpolators Monte Carlo')
+        self.lmax = lmax
+        if CMB_unit is None:
+            CMB_unit = self.CMB_unit
+        self.ell = np.arange(self.lmax+1)
+
+        parr = []
+        np.random.seed(rseed)
+        for par in self.pars:
+            parr.append(np.random.uniform(par.min, par.max, nsamples))
+
+        kw_pfixed = {}
+        for par in self.pfixed:
+            kw_pfixed[par.name] = par.init
+
+        grids = np.array(parr)
+
+        def __spectrum(*p):
+            print (*p)
+            kw_par = {} 
+            for par, pval in zip(self.pars, p):
+                kw_par[par.name] = pval
+
+            return get_spectrum_camb(self.lmax, isDl=True, CMB_unit=self.CMB_unit, 
+                                     **kw_par, **kw_pfixed) 
+
+        dat = np.array(list(map(__spectrum, *grids)))
+
+        datTT = dat[:, 0, :]
+        datEE = dat[:, 1, :]
+        datBB = dat[:, 2, :]
+        datTE = dat[:, 3, :]
+
+        self.MCTT = datTT
+        self.MCEE = datEE
+        self.MCBB = datBB
+        self.MCTE = datTE
+
+        self.funcTT = self.MCinterpolator(grids.T, value=self.MCTT)
+        self.funcEE = self.MCinterpolator(grids.T, value=self.MCEE)
+        self.funcBB = self.MCinterpolator(grids.T, value=self.MCBB)
+        self.funcTE = self.MCinterpolator(grids.T, value=self.MCTE)
+
+        self.MCpoints = grids.T
+
+        if ofname is None:
+            ofname = ''
+            for par in self.pars:
+                ofname += par.name
+                ofname += '_'
+            
+            ofname += f'lmax{self.lmax}_npts{nsamples}_MC.npz'
+
+        self.write_MCdata(ofname)
+
+    def MCinterpolator(self, points, value, method='linear'):
+        #ell = self.ell
+        def interpfnc(*parr):
+            pars = parr[0][:-1]
+            ell = parr[0][-1]
+            return griddata(points, value, pars, method=method)[ell]
+
+        return interpfnc
+
     def get_spectrum(self, lmax=None, isDl=True, **kwpars):
         dls = []
         if lmax is None:
@@ -115,7 +200,9 @@ class CAMBfast():
             dls.append(self.funcTE((*pars, ell))[:lmax+1])
 
             dls = np.array(dls)
-        except ValueError:
+        except ValueError as e:
+            print(e)
+            print('The parameter out of range. Using camb.')
             dls = get_spectrum_camb(lmax=lmax, isDl=True, **kwpars)
 
         if isDl:
@@ -133,6 +220,15 @@ class CAMBfast():
 
         print ("The functions have been saved in {}".format(fname))
 
+    def write_MCdata(self, fname):
+        kwargs = {}
+        for aname in self.attrsMC:
+            kwargs[aname] = getattr(self, aname)
+
+        np.savez(fname, **kwargs)
+
+        print ("The MC data have been saved in {}".format(fname))
+
     def load_funcs(self, fname):
         dat = np.load(fname, allow_pickle=True)
         for name in dat.files:
@@ -140,6 +236,16 @@ class CAMBfast():
                 setattr(self, name, dat[name].item())
             else:
                 setattr(self, name, dat[name])
+
+    def load_MCdata(self, fname, method='linear'):
+        dat = np.load(fname, allow_pickle=True)
+        for name in dat.files:
+            setattr(self, name, dat[name])
+
+        self.funcTT = self.MCinterpolator(self.MCpoints, value=self.MCTT, method=method)
+        self.funcEE = self.MCinterpolator(self.MCpoints, value=self.MCEE, method=method)
+        self.funcBB = self.MCinterpolator(self.MCpoints, value=self.MCBB, method=method)
+        self.funcTE = self.MCinterpolator(self.MCpoints, value=self.MCTE, method=method)
 
 
 def dl2cl(dls):
