@@ -4,6 +4,7 @@ import time
 import camb
 import numpy as np
 
+from gbpipe.spectrum import get_spectrum_camb
 from scipy.interpolate import RegularGridInterpolator, griddata
 
 
@@ -43,6 +44,8 @@ class CAMBfast():
         self.MCnpts = []
         self.MCpoints = []
         self.MCvalues = []
+
+        self.ini_file = None
 
         self.attrs = ['pars', 'pfixed', 'lmax', 'CMB_unit', 'ell',
                       'funcTT', 'funcEE', 'funcBB', 'funcTE']
@@ -88,7 +91,9 @@ class CAMBfast():
             for par, pval in zip(self.pars, p):
                 kw_par[par.name] = pval
 
-            return get_spectrum_camb(self.lmax, isDl=True, CMB_unit=self.CMB_unit, 
+            return get_spectrum_camb(self.lmax, isDl=True, 
+                                     CMB_unit=self.CMB_unit, 
+                                     ini_file=self.ini_file,
                                      **kw_par, **kw_pfixed) 
 
         dat = np.array(list(map(__spectrum, *grids)))
@@ -265,6 +270,7 @@ def dl2cl(dls):
     return cls
 
 
+"""
 def get_spectrum_camb(lmax, 
                       isDl=True, cambres=False, TTonly=False, unlensed=False, CMB_unit=None, 
                       **kwargs):
@@ -316,5 +322,5 @@ def get_spectrum_camb(lmax,
         return res, results
     else:
         return res
-
+"""
 
