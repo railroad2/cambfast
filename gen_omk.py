@@ -6,7 +6,7 @@ import cambfast
 from cambfast import get_spectrum_camb
 
 lmax = 50
-npts = 100
+npts = 30
 
 cf = cambfast.CAMBfast()
 cf.add_parameter('omk', 0.05, -0.3, 0.3, npts, fixed=False)
