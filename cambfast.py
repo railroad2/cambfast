@@ -45,7 +45,7 @@ class CAMBfast():
         self.MCpoints = []
         self.MCvalues = []
 
-        self.ini_file = None
+        self.inifile = None
 
         self.attrs = ['pars', 'pfixed', 'lmax', 'CMB_unit', 'ell',
                       'funcTT', 'funcEE', 'funcBB', 'funcTE']
@@ -93,7 +93,7 @@ class CAMBfast():
 
             return get_spectrum_camb(self.lmax, isDl=True, 
                                      CMB_unit=self.CMB_unit, 
-                                     ini_file=self.ini_file,
+                                     inifile=self.inifile,
                                      **kw_par, **kw_pfixed) 
 
         dat = np.array(list(map(__spectrum, *grids)))
