@@ -207,6 +207,7 @@ class CAMBfast():
             dls = np.array(dls)
         except ValueError as e:
             print(e)
+            print(pars)
             print('The parameter out of range. Using camb.')
             dls = get_spectrum_camb(lmax=lmax, isDl=True, **kwpars)
 
