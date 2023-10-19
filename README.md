@@ -1,24 +1,34 @@
-cambfast
+# cambfast
 
-A package to compute cmb angular power spectra for a single variable 
-by linear interpolations between CAMB spectra.
+The cambfast package computes cmb angular power spectra for the given variables
+by linear interpolations between precomputed spectra. 
+The camb package (https://camb.info/) is used to compute the precomputed spectra.
 
-usage
+## usage
 
-    import cambfast
+* Generating precomputed spectra.
 
-    cf = cambfast.Cambfast('tau', 0.03, 0.08, nsample=10, lmax=2000, As=2.092e-9, r=0.01)
-    dls = cf.get_spectrum(0.05)
+```
+import cambfast
 
-or
+cf = cambfast.CAMBfast()
+cf.add_parameter('tau', 0.05, 0.02, 0.1, 10, fixed=False)
+lmax = 30
+cf.generate_interp(lmax, CMB_unit='muK')
+cf.write_funcs(<precomputed file name>)
+```
 
-    cf = cambfast.Cambfast(filename=<pre-computed file name>)
-    print(cf.pname)
-    dls = cf.get_spectrum(0.05)
+* Compute the spectra using the precomputed spectra.
+
+```
+cf = cambfast.CAMBfast(filename=<precomputed file name>)
+print(cf.pname)
+dls = cf.get_spectrum(tau=0.05)
+```
+
+* See `test_cambfast.py` for more.
     
-It generated precomputed files in 'precomputed' directory. 
-Please note that the parameters other than the main parameter are default values
-unless they are not defined as extra arguments.
-    
-     
+The generated precomputed files are written in the 'precomputed' directory. 
+Please note that the parameters other than the added parameters are 
+taken from the Plank 2018 result (Planck collaboration, A&A 641, A6 (2020)).
 
