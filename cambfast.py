@@ -17,9 +17,9 @@ args_InitPower = ['As', 'ns', 'nrun', 'nrunrun', 'r', 'nt', 'ntrun', 'pivot_scal
                   'pivot_tensor', 'parameterization']
 
 
-class CAMBfast():
+class CAMBfast:
 
-    class Parameter(): 
+    class Parameter: 
 
         def __init__(self, pname, pinit, pmin, pmax, nstep, fixed=False):
             assert (pmax >= pmin),  f'pmax (={pmax}) must be larger than pmin (={pmin}).'
@@ -115,8 +115,9 @@ class CAMBfast():
                 ofname += par.name
                 ofname += '_'
             
-        ofname += f'lmax{self.lmax}_npts{npts}.npz'
-        self.write_funcs(ofname)
+            ofname += f'lmax{self.lmax}_npts{npts}.npz'
+
+        #self.write_funcs(ofname)
 
     def generate_interp_MC(self, lmax, nsamples, CMB_unit=None, rseed=0, rescale=False, ofname=None):
         print ('Generating interpolators Monte Carlo')
@@ -270,58 +271,4 @@ def dl2cl(dls):
 
     return cls
 
-
-"""
-def get_spectrum_camb(lmax, 
-                      isDl=True, cambres=False, TTonly=False, unlensed=False, CMB_unit=None, 
-                      **kwargs):
-   
-    ## arguments to dictionaries
-    kwargs_cosmology={}
-    kwargs_InitPower={}
-    wantTensor = False
-
-    for key, value in kwargs.items():  
-        if key in args_cosmology: 
-            kwargs_cosmology[key]=value
-            if key == 'r':
-                wantTensor = True
-        elif key in args_InitPower:
-            kwargs_InitPower[key]=value
-        else:
-            print('Wrong keyword: ' + key)
-
-    ## for camb > 1.0
-    if not ('H0' in kwargs_cosmology.keys()):
-        kwargs_cosmology['H0'] = 67.5
-
-    ## call camb
-    pars = camb.CAMBparams()
-    pars.set_cosmology(**kwargs_cosmology)
-    pars.InitPower.set_params(**kwargs_InitPower)
-    pars.WantTensors = True
-    results = camb.get_results(pars)
-
-    if (TTonly):
-        if unlensed:
-            dls = results.get_unlensed_total_cls(lmax=lmax, CMB_unit=CMB_unit).T[0]
-        else:
-            dls = results.get_total_cls(lmax=lmax, CMB_unit=CMB_unit).T[0]
-    else: 
-        if unlensed:
-            dls = results.get_unlensed_total_cls(lmax=lmax, CMB_unit=CMB_unit).T
-        else:
-            dls = results.get_total_cls(lmax=lmax, CMB_unit=CMB_unit).T
-
-    if (isDl):
-        res = dls
-    else:
-        cls = dl2cl(dls)
-        res = cls
-
-    if (cambres):
-        return res, results
-    else:
-        return res
-"""
 

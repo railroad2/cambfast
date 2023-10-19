@@ -14,8 +14,8 @@ class test_cambfast(unittest.TestCase):
     def setUpClass(cls):
         cls.cf = cambfast.CAMBfast() 
         cls.cf.add_parameter('tau', 0.0522, 0.02, 0.1, 10, fixed=False)
-        cls.cf.add_parameter('r', 0.01, 0.0, 0.1, 10, fixed=False)
-        cls.cf.add_parameter('As', 2e-9, 1e-9, 3e-9, 10, fixed=False)
+        cls.cf.add_parameter('r', 0.01, 0.0, 0.1, 10, fixed=True)
+        cls.cf.add_parameter('As', 2e-9, 1e-9, 3e-9, 10, fixed=True)
         cls.lmax = 60
         cls.cf.generate_interp(cls.lmax, CMB_unit='muK') 
         cls.cf.write_funcs('tau_r_As_lmax60.npz')
@@ -100,8 +100,8 @@ class test_cambfast_precomputed(unittest.TestCase):
 
 def suite():
     suite = unittest.TestSuite()
+    suite.addTest(unittest.makeSuite(test_cambfast))
     suite.addTest(unittest.makeSuite(test_cambfast_precomputed))
-    #suite.addTest(unittest.makeSuite(test_cambfast))
     return suite
 
 
